@@ -1,7 +1,6 @@
 import simpy
 import random
 
-
 #Env: Variable del enviroment de simpy
 #ID: identificador del proceso
 #cpu: Velocidad del cpu
@@ -12,8 +11,11 @@ import random
 
 def simulacion(env, ID, cpu, RAM, memoria, delay, contadorRAM):
   yield env.timeout(delay)
+  global tiempoTotal
+  global tiempoPromedio
   countprint = 0
-
+  llegada = env.now
+  tiempoTotal = 0
   with cpu.request() as req:
     #ready
     while(memoria > 0):
@@ -25,13 +27,29 @@ def simulacion(env, ID, cpu, RAM, memoria, delay, contadorRAM):
       yield env.timeout(3)
       memoria = memoria - 3
       
+    tiempoTotal = env.now - llegada
     print("%s salio en %d" % (ID, env.now))
-    
-
-    
-    
+    tiempoPromedio = tiempoTotal/25
 
 
+def running(env,ID,cpu,RAM,proceso,delay, contadorRAM):
+  yield env.timeout(3)
+  if(proceso == 1 ):
+    proceso = proceso - 1
+  if(proceso == 2 ):
+    proceso = proceso - 2
+  else:
+    proceso = proceso - 2
+  
+  wait = random.randint(1, 2)
+  if(wait == 1):
+    env.process(Wait(env,ID,cpu,RAM,proceso,delay, contadorRAM))
+  else:
+    env.process(simulacion(env,ID,cpu,RAM,proceso,delay, contadorRAM))
+
+def Wait(env,ID,cpu,RAM,proceso,delay, contadorRAM):
+  yield env.timeout(3)
+  env.process(simulacion(env,ID,cpu,RAM,proceso,delay, contadorRAM))
   
 
 
@@ -45,8 +63,17 @@ Velocidadcpu = simpy.Resource(env, capacity = 1)
 intervalo = 10
 random.seed(10)
 for i in range(25):
+  #Asignacion de instrucciones
   memoriaProceso = random.randint(1, 10)
-  env.process(simulacion(env, "Proceso %d" % i, Velocidadcpu, RAM, memoriaProceso, random.expovariate(1.0/intervalo), maxRAM))
+
+  if(memoriaProceso >= 1):
+    env.process(running(env, "Proceso %d" % i, Velocidadcpu, RAM, memoriaProceso, random.expovariate(1.0/intervalo), maxRAM))  
+  else:
+    env.process(simulacion(env, "Proceso %d" % i, Velocidadcpu, RAM, memoriaProceso, random.expovariate(1.0/intervalo), maxRAM))
+
+
+  
 
 #Correr la simulacion
 env.run()
+print("El tiempo promedio de completacion " ,tiempoPromedio)
